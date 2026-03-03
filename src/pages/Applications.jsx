@@ -8,14 +8,18 @@ import ApplicationDrawer from '@/components/applications/ApplicationDrawer'
 import useApplicationStore from '@/store/applicationStore'
 
 export default function Applications() {
-  const { fetchApplications, loading, error } = useApplicationStore()
+  // Select only what we need — stable function reference from store
+  const fetchApplications = useApplicationStore((s) => s.fetchApplications)
+  const loading = useApplicationStore((s) => s.loading)
+  const error = useApplicationStore((s) => s.error)
   const [formOpen, setFormOpen] = useState(false)
   const [editApp, setEditApp] = useState(null)
   const [selectedApp, setSelectedApp] = useState(null)
 
+  // Empty deps — fetch once on mount only, never re-trigger on store updates
   useEffect(() => {
     fetchApplications()
-  }, [fetchApplications])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (error) toast.error(`Failed to load: ${error}`)
@@ -46,11 +50,11 @@ export default function Applications() {
         </Button>
       </div>
 
-      {loading ? (
-        <div className="text-center py-20 text-muted-foreground">Loading applications…</div>
-      ) : (
-        <ApplicationTable onEdit={openEdit} onSelect={setSelectedApp} />
+      {/* Keep table mounted at all times so modals/drawers don't close on re-fetch */}
+      {loading && (
+        <div className="text-center py-4 text-sm text-muted-foreground">Loading…</div>
       )}
+      <ApplicationTable onEdit={openEdit} onSelect={setSelectedApp} />
 
       <ApplicationForm
         open={formOpen}
