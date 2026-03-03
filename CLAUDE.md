@@ -1,17 +1,17 @@
 # CLAUDE.md
 
 ## ⚡ CURRENT STATE
-**Last Updated:** 2026-03-03
-**Active Sprint:** Sprint 2
-**Last Completed:** Sprint 1 — 2026-03-03
-**Next Action:** Run Sprint 2 — Interview Tracker
+**Last Updated:** 2026-03-04
+**Active Sprint:** Sprint 3
+**Last Completed:** Sprint 2 — 2026-03-04
+**Next Action:** Run Sprint 3 — Dashboard + Insights
 
 ---
 
 ## ✅ SPRINT STATUS
 - [x] Sprint 0 — Bootstrap ✅ 2026-03-03
 - [x] Sprint 1 — Application CRUD ✅ 2026-03-03
-- [ ] Sprint 2 — Interview Tracker
+- [x] Sprint 2 — Interview Tracker ✅ 2026-03-04
 - [ ] Sprint 3 — Dashboard + Insights
 - [ ] Sprint 4 — Job Alerts
 - [ ] Sprint 5 — Polish + Export
@@ -26,6 +26,7 @@
 - 2026-03-03: PocketBase v0.22.20 ARM64 binary confirmed, Node v24.8.0
 - 2026-03-03: Sprint 1 — applicationService, applicationStore (Zustand), ApplicationForm (Dialog), ApplicationTable (sort+filter), ApplicationDrawer (Sheet), StatusBadge
 - 2026-03-03: scripts/setup-pb.js creates all PocketBase collections + seeds 5 sample apps
+- 2026-03-04: Sprint 2 — interviewService, interviewStore, InterviewForm (Dialog + question bank), InterviewCard, QuestionBank, updated ApplicationDrawer (interview timeline), Interviews page (filters), Companies page (grouped)
 
 ---
 
