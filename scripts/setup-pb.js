@@ -16,17 +16,32 @@ if (!email || !password) {
   process.exit(1)
 }
 
-// Helper field builders — every field must have an options object matching its type
-const text   = (name, required = false) => ({ name, type: 'text',   required, options: { min: null, max: null, pattern: '' } })
-const sel    = (name, values, req = false) => ({ name, type: 'select', required: req, options: { maxSelect: 1, values } })
-const date   = (name) => ({ name, type: 'date',   required: false, options: { min: '', max: '' } })
-const bool   = (name) => ({ name, type: 'bool',   required: false, options: {} })
-const json   = (name) => ({ name, type: 'json',   required: false, options: { maxSize: 2000000 } })
-// Use text instead of url type to avoid options compatibility issues
-const url    = (name) => text(name)
+// Field builders — every field MUST have an options object matching its type
+const text = (name, required = false) => ({
+  name, type: 'text', required,
+  options: { min: null, max: null, pattern: '' },
+})
+const sel = (name, values, required = false) => ({
+  name, type: 'select', required,
+  options: { maxSelect: 1, values },
+})
+const date = (name) => ({
+  name, type: 'date', required: false,
+  options: { min: '', max: '' },
+})
+const bool = (name) => ({
+  name, type: 'bool', required: false,
+  options: {},
+})
+const json = (name) => ({
+  name, type: 'json', required: false,
+  options: { maxSize: 2000000 },
+})
 
-// Public access rules (empty string = anyone; null = admin only)
-const publicRules = { listRule: '', viewRule: '', createRule: '', updateRule: '', deleteRule: '' }
+// Empty string = public; null = admin-only
+const publicRules = {
+  listRule: '', viewRule: '', createRule: '', updateRule: '', deleteRule: '',
+}
 
 const collections = [
   {
@@ -35,11 +50,11 @@ const collections = [
     ...publicRules,
     schema: [
       text('company', true),
-      text('role',    true),
-      sel('status',   ['applied', 'screening', 'interview', 'offer', 'rejected', 'ghosted']),
+      text('role', true),
+      sel('status', ['applied', 'screening', 'interview', 'offer', 'rejected', 'ghosted']),
       date('applied_date'),
-      sel('source',   ['linkedin', 'naukri', 'direct', 'referral', 'alert']),
-      url('jd_url'),
+      sel('source', ['linkedin', 'naukri', 'direct', 'referral', 'alert']),
+      text('jd_url'),
       text('resume_version'),
       text('notes'),
       text('salary_range'),
@@ -53,8 +68,8 @@ const collections = [
     schema: [
       text('name', true),
       sel('tier', ['MAANG', 'Tier-1', 'Tier-2', 'Startup']),
-      url('website'),
-      url('glassdoor_url'),
+      text('website'),
+      text('glassdoor_url'),
       text('notes'),
       json('tags'),
     ],
@@ -72,17 +87,20 @@ const collections = [
   },
 ]
 
-async function pbFetch(path, opts = {}) {
+// KEY FIX: destructure headers out of opts so spread doesn't overwrite Content-Type
+async function pbFetch(path, { headers: extraHeaders = {}, ...rest } = {}) {
   const res = await fetch(`${PB_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...opts.headers },
-    ...opts,
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+    ...rest,
   })
-  const json = await res.json().catch(() => ({}))
+  let body
+  try { body = await res.json() } catch { body = {} }
   if (!res.ok) {
-    const msg = json.message || json.data ? JSON.stringify(json.data) : `HTTP ${res.status}`
-    throw new Error(msg)
+    // Print the full PocketBase error for debugging
+    const detail = body.data ? JSON.stringify(body.data, null, 2) : ''
+    throw new Error(`${body.message || `HTTP ${res.status}`}\n${detail}`)
   }
-  return json
+  return body
 }
 
 async function run() {
@@ -92,7 +110,7 @@ async function run() {
     method: 'POST',
     body: JSON.stringify({ identity: email, password }),
   })
-  const authHeader = { Authorization: `Bearer ${auth.token}` }
+  const authHeaders = { Authorization: `Bearer ${auth.token}` }
   console.log('✅ Authenticated')
 
   // 2. Create collections
@@ -100,16 +118,16 @@ async function run() {
     try {
       await pbFetch('/api/collections', {
         method: 'POST',
-        headers: authHeader,
+        headers: authHeaders,
         body: JSON.stringify(col),
       })
       console.log(`✅ Created collection: ${col.name}`)
     } catch (e) {
       const msg = e.message ?? ''
-      if (msg.includes('already exists') || msg.includes('unique') || msg.includes('name')) {
+      if (msg.includes('already exists') || msg.includes('name')) {
         console.log(`⏭  Skipped (already exists): ${col.name}`)
       } else {
-        console.error(`❌ Failed to create ${col.name}:`, msg)
+        console.error(`❌ Failed to create ${col.name}:\n${msg}`)
       }
     }
   }
@@ -117,27 +135,27 @@ async function run() {
   // 3. Seed 5 sample applications
   console.log('\n📝 Seeding 5 sample applications…')
   const samples = [
-    { company: 'Google',    role: 'Senior SDET',         status: 'interview', applied_date: '2026-02-10 00:00:00.000Z', source: 'linkedin',  location: 'Bengaluru',         salary_range: '50-70 LPA', resume_version: 'v3-sdet-maang' },
-    { company: 'Microsoft', role: 'SDET II',              status: 'screening', applied_date: '2026-02-15 00:00:00.000Z', source: 'referral',  location: 'Hyderabad',         salary_range: '40-55 LPA', resume_version: 'v3-sdet-maang' },
-    { company: 'Amazon',    role: 'SDE-II (Test)',        status: 'applied',   applied_date: '2026-02-20 00:00:00.000Z', source: 'direct',    location: 'Bengaluru / Remote', resume_version: 'v3-sdet-maang' },
-    { company: 'Flipkart',  role: 'Senior QA Engineer',  status: 'rejected',  applied_date: '2026-02-01 00:00:00.000Z', source: 'naukri',    location: 'Bengaluru',         salary_range: '30-40 LPA' },
-    { company: 'PhonePe',   role: 'Staff SDET',          status: 'ghosted',   applied_date: '2026-01-25 00:00:00.000Z', source: 'linkedin',  location: 'Bengaluru',         salary_range: '35-45 LPA' },
+    { company: 'Google',    role: 'Senior SDET',        status: 'interview', applied_date: '2026-02-10 00:00:00.000Z', source: 'linkedin', location: 'Bengaluru',          salary_range: '50-70 LPA', resume_version: 'v3-sdet-maang' },
+    { company: 'Microsoft', role: 'SDET II',             status: 'screening', applied_date: '2026-02-15 00:00:00.000Z', source: 'referral', location: 'Hyderabad',          salary_range: '40-55 LPA', resume_version: 'v3-sdet-maang' },
+    { company: 'Amazon',    role: 'SDE-II (Test)',       status: 'applied',   applied_date: '2026-02-20 00:00:00.000Z', source: 'direct',   location: 'Bengaluru / Remote', resume_version: 'v3-sdet-maang' },
+    { company: 'Flipkart',  role: 'Senior QA Engineer', status: 'rejected',  applied_date: '2026-02-01 00:00:00.000Z', source: 'naukri',   location: 'Bengaluru',          salary_range: '30-40 LPA' },
+    { company: 'PhonePe',   role: 'Staff SDET',         status: 'ghosted',   applied_date: '2026-01-25 00:00:00.000Z', source: 'linkedin', location: 'Bengaluru',          salary_range: '35-45 LPA' },
   ]
 
   for (const app of samples) {
     try {
       await pbFetch('/api/collections/applications/records', {
         method: 'POST',
-        headers: authHeader,
+        headers: authHeaders,
         body: JSON.stringify(app),
       })
       console.log(`  ✅ ${app.company} — ${app.role}`)
     } catch (e) {
-      console.error(`  ❌ ${app.company}:`, e.message)
+      console.error(`  ❌ ${app.company}: ${e.message}`)
     }
   }
 
-  console.log('\n🎉 Setup complete! Open http://localhost:5173/applications to see your data.')
+  console.log('\n🎉 Done! Open http://localhost:5173/applications to see your data.')
 }
 
 run().catch((e) => {
