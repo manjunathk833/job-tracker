@@ -2,15 +2,15 @@
 
 ## ⚡ CURRENT STATE
 **Last Updated:** 2026-03-03
-**Active Sprint:** Sprint 1
-**Last Completed:** Sprint 0 — 2026-03-03
-**Next Action:** Run Sprint 1 — Application CRUD
+**Active Sprint:** Sprint 2
+**Last Completed:** Sprint 1 — 2026-03-03
+**Next Action:** Run Sprint 2 — Interview Tracker
 
 ---
 
 ## ✅ SPRINT STATUS
 - [x] Sprint 0 — Bootstrap ✅ 2026-03-03
-- [ ] Sprint 1 — Application CRUD
+- [x] Sprint 1 — Application CRUD ✅ 2026-03-03
 - [ ] Sprint 2 — Interview Tracker
 - [ ] Sprint 3 — Dashboard + Insights
 - [ ] Sprint 4 — Job Alerts
@@ -24,6 +24,8 @@
 - 2026-03-03: shadcn/ui v3 initialized with default theme (neutral), components in src/components/ui/
 - 2026-03-03: jsconfig.json added for path alias @/* → src/* (JavaScript project, not TypeScript)
 - 2026-03-03: PocketBase v0.22.20 ARM64 binary confirmed, Node v24.8.0
+- 2026-03-03: Sprint 1 — applicationService, applicationStore (Zustand), ApplicationForm (Dialog), ApplicationTable (sort+filter), ApplicationDrawer (Sheet), StatusBadge
+- 2026-03-03: scripts/setup-pb.js creates all PocketBase collections + seeds 5 sample apps
 
 ---
 
