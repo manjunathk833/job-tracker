@@ -1,0 +1,21 @@
+name: DB Backup
+on:
+  schedule:
+    - cron: '30 14 * * *'
+  workflow_dispatch:
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backup DB
+        run: |
+          git config user.email "manjunathhk833@gmail.com"
+          git config user.name "Auto Backup Bot"
+          git add pocketbase/pb_data/ || true
+          git diff --cached --quiet || git commit -m "chore: db backup $(date +%Y-%m-%d)"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

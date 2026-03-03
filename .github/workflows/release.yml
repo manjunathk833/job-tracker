@@ -1,0 +1,19 @@
+name: Release
+on:
+  push:
+    branches: [main]
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create release
+        run: |
+          TAG="v$(date +%Y.%m.%d)"
+          git tag $TAG
+          git push origin $TAG
+          gh release create $TAG --title "Release $TAG" --generate-notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
