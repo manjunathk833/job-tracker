@@ -16,6 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { ROUND_OPTIONS, INTERVIEW_STATUS_OPTIONS, DIFFICULTY_OPTIONS } from '@/utils/constants'
 import { DIFFICULTY_MAP } from '@/utils/constants'
 import useInterviewStore from '@/store/interviewStore'
+import useApplicationStore from '@/store/applicationStore'
 
 const EMPTY_FORM = {
   round: 'Technical-1',
@@ -38,12 +39,15 @@ function DifficultyBadge({ difficulty }) {
 
 export default function InterviewForm({ open, onClose, editInterview, applicationId }) {
   const { addInterview, updateInterview } = useInterviewStore()
+  const applications = useApplicationStore((s) => s.applications)
   const [form, setForm] = useState(EMPTY_FORM)
   const [questions, setQuestions] = useState([])
   const [saving, setSaving] = useState(false)
+  const [pickedAppId, setPickedAppId] = useState('')
 
   useEffect(() => {
     if (!open) return
+    setPickedAppId('')
     if (editInterview) {
       setForm({
         round: editInterview.round ?? 'Technical-1',
@@ -75,8 +79,8 @@ export default function InterviewForm({ open, onClose, editInterview, applicatio
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const appId = editInterview?.application ?? applicationId
-    if (!appId) { toast.error('No application linked'); return }
+    const appId = editInterview?.application ?? applicationId ?? pickedAppId
+    if (!appId) { toast.error('Select an application first'); return }
 
     setSaving(true)
     try {
@@ -109,6 +113,25 @@ export default function InterviewForm({ open, onClose, editInterview, applicatio
 
         <ScrollArea className="max-h-[75vh]">
           <form id="interview-form" onSubmit={handleSubmit} className="space-y-4 px-1 py-2">
+            {/* Application picker — only shown when opened from the top-level Add Round button */}
+            {!editInterview && !applicationId && (
+              <div className="space-y-1.5">
+                <Label>Application</Label>
+                <Select value={pickedAppId} onValueChange={setPickedAppId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an application…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {applications.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.company} — {a.role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Round meta */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
