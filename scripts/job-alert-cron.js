@@ -12,6 +12,26 @@
  *   30 14 * * * cd /path/to/job-tracker && node scripts/job-alert-cron.js admin@local.dev password123
  */
 
+// Load .env file — Vite handles this for the browser but Node scripts need it explicitly
+import { readFileSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+try {
+  const envPath = resolve(__dirname, '../.env')
+  const lines = readFileSync(envPath, 'utf8').split('\n')
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx < 1) continue
+    const key = trimmed.slice(0, eqIdx).trim()
+    const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '')
+    if (key && !(key in process.env)) process.env[key] = val
+  }
+} catch (_) { /* .env not found — rely on shell env vars */ }
+
 const PB_URL = process.env.VITE_PB_URL || 'http://localhost:8090'
 const [, , email, password] = process.argv
 
