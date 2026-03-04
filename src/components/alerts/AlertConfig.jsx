@@ -10,7 +10,9 @@ import {
 import useAlertStore from '@/store/alertStore'
 
 const SOURCE_OPTIONS = [
-  { value: 'indeed', label: 'Indeed India' },
+  { value: 'indeed', label: 'Indeed (Global)' },
+  { value: 'timesjobs', label: 'TimesJobs India' },
+  { value: 'remotive', label: 'Remotive (Remote)' },
 ]
 
 export default function AlertConfig() {

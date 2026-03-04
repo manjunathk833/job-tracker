@@ -18,9 +18,19 @@ if (!email || !password) {
 }
 
 // ── RSS feed URL builders ────────────────────────────────────────────────────
+// Note: in.indeed.com/rss is defunct (404). Use www.indeed.com with country param.
 const RSS_FEEDS = {
+  // Indeed global — still serves RSS, append India + city to keyword for relevance
   indeed: (keyword) =>
-    `https://in.indeed.com/rss?q=${encodeURIComponent(keyword)}&l=Bengaluru`,
+    `https://www.indeed.com/rss?q=${encodeURIComponent(keyword + ' Bengaluru India')}&sort=date`,
+
+  // TimesJobs — major Indian job board with public RSS
+  timesjobs: (keyword) =>
+    `https://www.timesjobs.com/rss/rss.faces?rssFreeText=${encodeURIComponent(keyword)}&rssLocation=bengaluru`,
+
+  // Remotive — remote jobs RSS (good for remote SDET roles)
+  remotive: (_keyword) =>
+    `https://remotive.com/remote-jobs/feed/software-dev`,
 }
 
 // ── PocketBase fetch helper ──────────────────────────────────────────────────
@@ -65,10 +75,25 @@ function parseRSS(xml) {
     const pubDate = extract('pubDate')
     const description = extract('description')
 
-    // Indeed title format: "Job Title - Company Name"
-    const dashIdx = title.lastIndexOf(' - ')
-    const company = dashIdx > -1 ? title.slice(dashIdx + 3).trim() : ''
-    const cleanTitle = dashIdx > -1 ? title.slice(0, dashIdx).trim() : title
+    // Common title formats:
+    //   Indeed:    "Job Title - Company Name"
+    //   TimesJobs: "Job Title | Company Name" or "Job Title - Company"
+    //   Remotive:  "Job Title at Company Name"
+    let cleanTitle = title
+    let company = ''
+    if (title.includes(' - ')) {
+      const dashIdx = title.lastIndexOf(' - ')
+      cleanTitle = title.slice(0, dashIdx).trim()
+      company = title.slice(dashIdx + 3).trim()
+    } else if (title.includes(' | ')) {
+      const pipeIdx = title.lastIndexOf(' | ')
+      cleanTitle = title.slice(0, pipeIdx).trim()
+      company = title.slice(pipeIdx + 3).trim()
+    } else if (title.includes(' at ')) {
+      const atIdx = title.lastIndexOf(' at ')
+      cleanTitle = title.slice(0, atIdx).trim()
+      company = title.slice(atIdx + 4).trim()
+    }
 
     const cleanDesc = description
       .replace(/<[^>]*>/g, '')
