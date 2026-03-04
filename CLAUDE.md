@@ -2,9 +2,9 @@
 
 ## ⚡ CURRENT STATE
 **Last Updated:** 2026-03-04
-**Active Sprint:** Sprint 5
-**Last Completed:** Sprint 4 — 2026-03-04
-**Next Action:** Run Sprint 5 — Polish + Export
+**Active Sprint:** Complete
+**Last Completed:** Sprint 5 — 2026-03-04
+**Next Action:** All sprints done — app is production-ready
 
 ---
 
@@ -14,7 +14,7 @@
 - [x] Sprint 2 — Interview Tracker ✅ 2026-03-04
 - [x] Sprint 3 — Dashboard + Insights ✅ 2026-03-04
 - [x] Sprint 4 — Job Alerts ✅ 2026-03-04
-- [ ] Sprint 5 — Polish + Export
+- [x] Sprint 5 — Polish + Export ✅ 2026-03-04
 
 ---
 
@@ -33,6 +33,7 @@
 - 2026-03-04: Adzuna API keys stored in .env (ADZUNA_APP_ID, ADZUNA_APP_KEY). job-alert-cron.js auto-loads .env via readFileSync since Vite doesn't load .env for Node scripts
 - 2026-03-04: 11 active alerts seeded via seed-alerts.js — SDET/Senior SDET/Staff SDET/QA Automation/Test Automation across all 3 sources
 - 2026-03-04: Crontab configured — daily 8:30 AM IST (3:00 AM UTC). Node path: /opt/homebrew/bin/node. Logs: /tmp/job-alert-cron.log
+- 2026-03-04: Sprint 5 — Dark mode toggle (next-themes ThemeProvider, persisted to localStorage via storageKey="job-tracker-theme"), CSV export on Applications page, Cmd+K global search (CommandPalette in Layout), N shortcut to open new application form, mobile sidebar (Sheet from left), README updated with 5-step setup guide
 
 ---
 
