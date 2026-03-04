@@ -1,0 +1,32 @@
+# Fly.io configuration — PocketBase backend
+# App name must be globally unique on Fly.io — change if taken
+# After changing the name, update VITE_PB_URL in Netlify + GitHub Secrets accordingly
+app = "manjunath-job-tracker"
+primary_region = "sin"   # Singapore — lowest latency from Bengaluru (~50ms)
+
+[build]
+  # Uses the Dockerfile at project root
+
+[http_service]
+  internal_port = 8090
+  force_https = true          # Fly.io auto-provisions + renews TLS cert
+  auto_stop_machines = true   # Spin down after inactivity — keeps usage inside free tier
+  auto_start_machines = true  # Spin back up on first request (~2-3s cold start)
+  min_machines_running = 0    # Full scale-to-zero (required for free tier)
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256   # PocketBase + SQLite comfortably fits in 256MB
+
+# Persistent volume — SQLite data survives deploys and machine restarts
+# Volume is created once via: fly volumes create pb_data --region sin --size 1
+[[mounts]]
+  source = "pb_data"
+  destination = "/pb/pb_data"
+  initial_size = "1gb"

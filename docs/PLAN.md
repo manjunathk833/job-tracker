@@ -480,6 +480,86 @@ Indeed IN: https://in.indeed.com/rss?q=Senior+SDET&l=Bengaluru
 
 ---
 
+### Sprint 6 — Hosting + Pipeline (added 2026-03-04)
+**Goal:** App accessible from anywhere; zero-downtime pipeline; automated backups + cron
+
+**Architecture:**
+- Frontend → **Netlify** (free): auto-deploy from GitHub `main`, SPA redirect, VITE_PB_URL env var
+- Backend → **Fly.io** (free tier): PocketBase binary + persistent SQLite volume, Singapore region
+- Cron → **GitHub Actions**: `job-alert-cron.yml` daily at 3:00 PM UTC (8:30 PM IST)
+- Backup → **GitHub Actions**: `backup.yml` downloads PocketBase backup zip daily, commits to `backups/`
+
+**Files created:**
+- `netlify.toml` — build command, publish dir, SPA fallback redirect
+- `Dockerfile` — downloads PocketBase Linux AMD64 binary, copies `pb_migrations/`
+- `fly.toml` — Singapore region, 256MB VM, scale-to-zero, 1GB volume mount
+- `.github/workflows/job-alert-cron.yml` — replaces local crontab
+- Updated `.github/workflows/backup.yml` — uses PocketBase `/api/backups` API (zip → commit)
+- `docs/HOSTING.md` — full one-time setup guide + maintenance checklist
+
+**GitHub Secrets required:**
+`VITE_PB_URL`, `PB_ADMIN_EMAIL`, `PB_ADMIN_PASSWORD`, `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`
+
+**✅ Verify:**
+- `fly status` → machine running in `sin`
+- Netlify URL → app loads, API calls return 200 from Fly.io
+- `gh workflow run job-alert-cron.yml` → completes, new listings in Alerts page
+- `gh workflow run backup.yml` → `backups/backup-YYYY-MM-DD.zip` committed to repo
+
+---
+
+### Sprint 7+ — Enhancement Roadmap
+
+These are ideas for future sessions. Pick any that are useful.
+
+#### 7a — Email Digest (High value)
+**Goal:** Daily email with new job listings so you don't need to open the app
+- Use **Resend** free tier (100 emails/day) — simple HTTP API, no SMTP setup
+- Add `scripts/send-digest.js` — call after job-alert-cron, summarize new listings
+- Add to `job-alert-cron.yml`: run send-digest.js after fetch step
+- PocketBase stores email preference; digest shows: title, company, link, published date
+- **Effort:** ~2 hours | **Value:** High — mobile-friendly, no app visit needed
+
+#### 7b — AI Interview Prep (High value, MAANG-focused)
+**Goal:** Paste a JD → get predicted interview questions with suggested answers
+- Add "Prep" tab to ApplicationDrawer (already shows interview timeline)
+- Call Claude API (claude-haiku-4-5, cheapest) with JD + role + company
+- Prompt: "You are an SDET interview coach. Given this JD, predict the top 10 interview questions across: DSA, system design for testing, behavioral. For each question, provide a strong answer tailored to a Senior SDET candidate."
+- Store results in a new `prep_notes` JSON field on the `applications` collection
+- **Effort:** ~3 hours | **Value:** Very high for MAANG prep
+
+#### 7c — Resume Version Manager
+**Goal:** Upload resume PDFs, tag them per application, track which version gets responses
+- Add file upload to ApplicationForm (`resume_version` field currently just text)
+- PocketBase supports file uploads natively — store in `applications` collection as a file field
+- Show resume thumbnail in ApplicationDrawer with download link
+- Track response rate per resume version in Insights page
+- **Effort:** ~3 hours | **Value:** Medium — helps optimize resume
+
+#### 7d — Application Status Webhooks (Automation)
+**Goal:** Auto-update application status from email/calendar events
+- Gmail label watcher (via Gmail API) → detect "Thank you for applying" emails → set status = applied
+- Calendar event with company name → set status = interview, add scheduled_date
+- Requires OAuth setup (complex) — lower priority
+- **Effort:** ~8 hours | **Value:** High long-term
+
+#### 7e — Salary Benchmark
+**Goal:** Show market salary ranges alongside each application
+- Integrate with Levels.fyi or Glassdoor API (or scrape) for compensation data by company + role
+- Show benchmark in ApplicationDrawer: "Google Senior SDET: ₹45-70 LPA (median ₹55L)"
+- Helps calibrate salary_range field entries
+- **Effort:** ~4 hours | **Value:** Medium
+
+#### 7f — Kanban View
+**Goal:** Drag-and-drop Kanban board as alternative to table view
+- Add toggle in Applications page: Table view | Kanban view
+- Use `@dnd-kit/core` for drag-and-drop (lighter than react-beautiful-dnd)
+- Columns: Applied → Screening → Interview → Offer (with Rejected/Ghosted as archive)
+- Dragging card updates `status` field via PATCH
+- **Effort:** ~4 hours | **Value:** Medium — better visual overview
+
+---
+
 ## 7. MASTER PROMPT FOR CLAUDE CODE
 
 Copy this as your **very first message** when opening Claude Code in the project folder:

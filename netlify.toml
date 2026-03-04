@@ -1,0 +1,14 @@
+# Netlify configuration — Job Tracker (React 19 + Vite SPA)
+# VITE_PB_URL must be set in Netlify UI → Site Settings → Environment Variables
+# Value: https://<your-fly-app-name>.fly.dev
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA fallback — all non-asset 404s rewrite to index.html so React Router handles routing
+# Status 200 = rewrite (URL stays the same in browser), NOT a redirect
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

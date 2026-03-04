@@ -27,6 +27,9 @@ dist-ssr
 .env
 .env.local
 
-# PocketBase runtime data (logs/storage excluded; pb_data itself kept for DB backup workflow)
+# PocketBase runtime data (logs/storage excluded; pb_data itself kept for local dev)
 pocketbase/pb_data/logs/
 pocketbase/pb_data/storage/
+
+# DB backups — committed by backup.yml GitHub Action (one zip per day from Fly.io volume)
+# backups/ is intentionally NOT ignored — zip files are tracked in git for restore history

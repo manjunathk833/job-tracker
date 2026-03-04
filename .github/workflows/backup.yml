@@ -1,8 +1,11 @@
 name: DB Backup
+
 on:
   schedule:
+    # Daily at 2:30 PM UTC (8:00 PM IST)
     - cron: '30 14 * * *'
   workflow_dispatch:
+
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -10,11 +13,49 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Backup DB
+
+      - name: Download PocketBase backup via API
+        run: |
+          BACKUP_NAME="backup-$(date +%Y-%m-%d).zip"
+
+          # Step 1: Authenticate — get admin token
+          TOKEN=$(curl -sf -X POST "${{ secrets.VITE_PB_URL }}/api/admins/auth-with-password" \
+            -H "Content-Type: application/json" \
+            -d "{\"identity\":\"${{ secrets.PB_ADMIN_EMAIL }}\",\"password\":\"${{ secrets.PB_ADMIN_PASSWORD }}\"}" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+
+          if [ -z "$TOKEN" ]; then
+            echo "❌ Authentication failed"
+            exit 1
+          fi
+          echo "✅ Authenticated"
+
+          # Step 2: Trigger backup creation (PocketBase writes zip to its volume)
+          curl -sf -X POST "${{ secrets.VITE_PB_URL }}/api/backups" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"${BACKUP_NAME}\"}"
+          echo "✅ Backup triggered: ${BACKUP_NAME}"
+
+          # Allow time for PocketBase to finish writing the zip
+          sleep 5
+
+          # Step 3: Download the zip
+          mkdir -p backups
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -o "backups/${BACKUP_NAME}" \
+            "${{ secrets.VITE_PB_URL }}/api/backups/${BACKUP_NAME}?token=${TOKEN}")
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Download failed (HTTP $HTTP_STATUS)"
+            exit 1
+          fi
+          echo "✅ Downloaded backups/${BACKUP_NAME} ($(du -sh backups/${BACKUP_NAME} | cut -f1))"
+
+      - name: Commit backup to repository
         run: |
           git config user.email "manjunathhk833@gmail.com"
           git config user.name "Auto Backup Bot"
-          git add pocketbase/pb_data/ || true
+          git add backups/
           git diff --cached --quiet || git commit -m "chore: db backup $(date +%Y-%m-%d)"
           git push
         env:
