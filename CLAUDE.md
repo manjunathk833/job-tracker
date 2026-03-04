@@ -3,8 +3,8 @@
 ## ⚡ CURRENT STATE
 **Last Updated:** 2026-03-04
 **Active Sprint:** Complete
-**Last Completed:** Sprint 5 — 2026-03-04
-**Next Action:** All sprints done — app is production-ready
+**Last Completed:** Sprint 6 — Hosting pipeline — 2026-03-04
+**Next Action:** Run deployment steps in docs/HOSTING.md
 
 ---
 
@@ -34,6 +34,7 @@
 - 2026-03-04: 11 active alerts seeded via seed-alerts.js — SDET/Senior SDET/Staff SDET/QA Automation/Test Automation across all 3 sources
 - 2026-03-04: Crontab configured — daily 8:30 AM IST (3:00 AM UTC). Node path: /opt/homebrew/bin/node. Logs: /tmp/job-alert-cron.log
 - 2026-03-04: Sprint 5 — Dark mode toggle (next-themes ThemeProvider, persisted to localStorage via storageKey="job-tracker-theme"), CSV export on Applications page, Cmd+K global search (CommandPalette in Layout), N shortcut to open new application form, mobile sidebar (Sheet from left), README updated with 5-step setup guide
+- 2026-03-04: Sprint 6 — Hosting pipeline: Netlify (frontend, free) + PocketHost.io (PocketBase, free, no credit card) + GitHub Actions job-alert-cron.yml (replaces local crontab) + backup.yml rewritten to use PocketBase /api/backups endpoint. Repo made public → unlimited Actions minutes. netlify.toml added. docs/HOSTING.md is the deployment guide.
 
 ---
 
@@ -44,10 +45,11 @@
 
 ## 🏗 PROJECT CONTEXT
 Personal job application tracker for Manjunath H K (Senior SDET targeting MAANG).
-Solo-use app — localhost only. No authentication required.
-See docs/PLAN.md for sprint task lists and verification steps.
+Open source — public GitHub repo. No authentication required.
+See docs/PLAN.md for sprint task lists and enhancement roadmap.
 See docs/SCHEMA.md for PocketBase collection schemas.
-GitHub: https://github.com/manjunathk833/job-tracker (private)
+See docs/HOSTING.md for deployment guide (Netlify + PocketHost.io).
+GitHub: https://github.com/manjunathk833/job-tracker (public)
 
 ---
 
@@ -79,7 +81,7 @@ GitHub: https://github.com/manjunathk833/job-tracker (private)
 - Setup PocketBase schema + seed: node scripts/setup-pb.js <email> <password>
 - Seed all SDET alerts: node scripts/seed-alerts.js <email> <password>
 - Fetch job listings (manual): node scripts/job-alert-cron.js <email> <password>
-- Fetch job listings (auto): crontab runs daily 8:30 AM IST → logs at /tmp/job-alert-cron.log
+- Fetch job listings (auto): GitHub Actions job-alert-cron.yml runs daily 3:00 PM UTC (8:30 PM IST)
 - Push: git add . && git commit -m "feat: x" && git push origin dev
 
 ---

@@ -13,7 +13,7 @@ jobs:
         with: { node-version: 20, cache: 'npm' }
       - run: npm ci
       # CI build uses localhost fallback — validates the build succeeds
-      # Production build runs on Netlify with VITE_PB_URL set to the Fly.io URL
+      # Production build runs on Netlify with VITE_PB_URL set to the PocketHost URL
       - run: npm run build
         env:
           VITE_PB_URL: http://localhost:8090

@@ -27,9 +27,14 @@ dist-ssr
 .env
 .env.local
 
-# PocketBase runtime data (logs/storage excluded; pb_data itself kept for local dev)
-pocketbase/pb_data/logs/
-pocketbase/pb_data/storage/
+# PocketBase binary + runtime data — never commit to public repo
+# The binary is platform-specific (macOS ARM64); pb_data contains personal job application data
+pocketbase/pocketbase
+pocketbase/CHANGELOG.md
+pocketbase/LICENSE.md
+pocketbase/pb_data/
+# Keep pb_migrations tracked (schema migrations are safe to publish)
+!pocketbase/pb_migrations/
 
-# DB backups — committed by backup.yml GitHub Action (one zip per day from Fly.io volume)
+# DB backups — committed by backup.yml GitHub Action (one zip per day from PocketHost)
 # backups/ is intentionally NOT ignored — zip files are tracked in git for restore history
