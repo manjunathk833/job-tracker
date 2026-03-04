@@ -2,9 +2,9 @@
 
 ## ⚡ CURRENT STATE
 **Last Updated:** 2026-03-04
-**Active Sprint:** Sprint 3
-**Last Completed:** Sprint 2 — 2026-03-04
-**Next Action:** Run Sprint 3 — Dashboard + Insights
+**Active Sprint:** Sprint 4
+**Last Completed:** Sprint 3 — 2026-03-04
+**Next Action:** Run Sprint 4 — Job Alerts
 
 ---
 
@@ -12,7 +12,7 @@
 - [x] Sprint 0 — Bootstrap ✅ 2026-03-03
 - [x] Sprint 1 — Application CRUD ✅ 2026-03-03
 - [x] Sprint 2 — Interview Tracker ✅ 2026-03-04
-- [ ] Sprint 3 — Dashboard + Insights
+- [x] Sprint 3 — Dashboard + Insights ✅ 2026-03-04
 - [ ] Sprint 4 — Job Alerts
 - [ ] Sprint 5 — Polish + Export
 
@@ -27,6 +27,7 @@
 - 2026-03-03: Sprint 1 — applicationService, applicationStore (Zustand), ApplicationForm (Dialog), ApplicationTable (sort+filter), ApplicationDrawer (Sheet), StatusBadge
 - 2026-03-03: scripts/setup-pb.js creates all PocketBase collections + seeds 5 sample apps
 - 2026-03-04: Sprint 2 — interviewService, interviewStore, InterviewForm (Dialog + question bank), InterviewCard, QuestionBank, updated ApplicationDrawer (interview timeline), Interviews page (filters), Companies page (grouped)
+- 2026-03-04: Sprint 3 — insights.js utility (computeStats, computeFunnelData, computeWeeklyData, computeSourceBreakdown, generateInsights), StatsOverview, FunnelChart, WeeklyProgress components, full Dashboard + Insights pages
 
 ---
 
