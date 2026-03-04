@@ -152,6 +152,38 @@ async function run() {
     }
   }
 
+  // 5. Create job_listings collection (needs alerts ID — done separately after main loop)
+  console.log('')
+  const alertsId = existingMap['alerts']
+  if (existingMap['job_listings']) {
+    console.log('⏭  Skipped (exists): job_listings')
+  } else if (!alertsId) {
+    console.error('❌ Cannot create job_listings: alerts collection not found')
+  } else {
+    try {
+      const jl = await pbFetch('/api/collections', {
+        method: 'POST', headers: H,
+        body: JSON.stringify({
+          name: 'job_listings',
+          type: 'base', ...publicRules,
+          schema: [
+            relation('alert', alertsId, false),
+            text('title', true),
+            text('company'),
+            text('link'),
+            text('description'),
+            date('published_date'),
+            bool('saved'),
+          ],
+        }),
+      })
+      existingMap['job_listings'] = jl.id
+      console.log('✅ Created: job_listings')
+    } catch (e) {
+      console.error(`❌ Failed to create job_listings:\n${e.message}`)
+    }
+  }
+
   // 5. Seed applications (skip if already have data)
   console.log('\n📝 Seeding sample applications…')
   const appCheck = await pbFetch('/api/collections/applications/records?perPage=1', { headers: H })
@@ -212,6 +244,25 @@ async function run() {
           console.log(`  ✅ Google — ${iv.round}`)
         } catch (e) { console.error(`  ❌ Google ${iv.round}: ${e.message}`) }
       }
+    }
+  }
+
+  // 7. Seed default alert (Senior SDET on Indeed)
+  console.log('\n📝 Seeding default alert…')
+  const alertCheck = await pbFetch('/api/collections/alerts/records?perPage=1', { headers: H }).catch(() => null)
+  if (!alertCheck) {
+    console.log('⏭  Skipped (alerts collection not ready)')
+  } else if (alertCheck.totalItems > 0) {
+    console.log(`⏭  Skipped (${alertCheck.totalItems} alert(s) already exist)`)
+  } else {
+    try {
+      await pbFetch('/api/collections/alerts/records', {
+        method: 'POST', headers: H,
+        body: JSON.stringify({ keyword: 'Senior SDET', source: 'indeed', active: true }),
+      })
+      console.log('  ✅ Alert: Senior SDET (Indeed)')
+    } catch (e) {
+      console.error(`  ❌ Alert seed: ${e.message}`)
     }
   }
 
