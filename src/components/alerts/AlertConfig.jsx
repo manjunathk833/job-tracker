@@ -10,9 +10,9 @@ import {
 import useAlertStore from '@/store/alertStore'
 
 const SOURCE_OPTIONS = [
-  { value: 'indeed', label: 'Indeed (Global)' },
-  { value: 'timesjobs', label: 'TimesJobs India' },
-  { value: 'remotive', label: 'Remotive (Remote)' },
+  { value: 'remotive', label: 'Remotive (Remote, no key)' },
+  { value: 'himalayas', label: 'Himalayas (Remote, India, no key)' },
+  { value: 'adzuna', label: 'Adzuna India (free API key required)' },
 ]
 
 export default function AlertConfig() {

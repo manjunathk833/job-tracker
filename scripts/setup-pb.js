@@ -258,9 +258,9 @@ async function run() {
     try {
       await pbFetch('/api/collections/alerts/records', {
         method: 'POST', headers: H,
-        body: JSON.stringify({ keyword: 'Senior SDET', source: 'indeed', active: true }),
+        body: JSON.stringify({ keyword: 'SDET', source: 'remotive', active: true }),
       })
-      console.log('  ✅ Alert: Senior SDET (Indeed)')
+      console.log('  ✅ Alert: SDET (Remotive)')
     } catch (e) {
       console.error(`  ❌ Alert seed: ${e.message}`)
     }

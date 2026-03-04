@@ -1,11 +1,14 @@
 /**
- * Job Alert RSS Cron
- * Fetches RSS feeds for active alerts and stores new listings in PocketBase.
+ * Job Alert Cron
+ * Fetches jobs from multiple sources for active alerts and stores new listings in PocketBase.
  *
  * Usage:
  *   node scripts/job-alert-cron.js <admin-email> <admin-password>
  *
- * Schedule (crontab example — runs daily at 8PM IST):
+ * For Adzuna source — register free at https://developer.adzuna.com and set env vars:
+ *   ADZUNA_APP_ID=xxx ADZUNA_APP_KEY=xxx node scripts/job-alert-cron.js ...
+ *
+ * Schedule (crontab — daily 8PM IST):
  *   30 14 * * * cd /path/to/job-tracker && node scripts/job-alert-cron.js admin@local.dev password123
  */
 
@@ -17,23 +20,107 @@ if (!email || !password) {
   process.exit(1)
 }
 
-// ── RSS feed URL builders ────────────────────────────────────────────────────
-// Note: in.indeed.com/rss is defunct (404). Use www.indeed.com with country param.
-const RSS_FEEDS = {
-  // Indeed global — still serves RSS, append India + city to keyword for relevance
-  indeed: (keyword) =>
-    `https://www.indeed.com/rss?q=${encodeURIComponent(keyword + ' Bengaluru India')}&sort=date`,
+// ── Source definitions ────────────────────────────────────────────────────────
+// Each source: fetch(keyword) → raw data, parse(data) → [{title,company,link,description,published_date}]
 
-  // TimesJobs — major Indian job board with public RSS
-  timesjobs: (keyword) =>
-    `https://www.timesjobs.com/rss/rss.faces?rssFreeText=${encodeURIComponent(keyword)}&rssLocation=bengaluru`,
+const SOURCES = {
+  // Remotive — free public JSON API, no auth. Remote QA/Dev jobs. No India filter (filter client-side).
+  remotive: {
+    label: 'Remotive (Remote)',
+    async fetch(keyword) {
+      const url = `https://remotive.com/api/remote-jobs?category=qa&search=${encodeURIComponent(keyword)}&limit=30`
+      const res = await fetch(url, { headers: { Accept: 'application/json' } })
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+      const json = await res.json()
+      return json.jobs ?? []
+    },
+    parse(jobs) {
+      return jobs.map((j) => ({
+        title: j.title ?? '',
+        company: j.company_name ?? '',
+        link: j.url ?? '',
+        description: stripHtml(j.description ?? '').slice(0, 400),
+        published_date: (j.publication_date ?? '').split('T')[0] || today(),
+      }))
+    },
+  },
 
-  // Remotive — remote jobs RSS (good for remote SDET roles)
-  remotive: (_keyword) =>
-    `https://remotive.com/remote-jobs/feed/software-dev`,
+  // Himalayas — free public JSON API, no auth. Remote jobs with India location filter.
+  himalayas: {
+    label: 'Himalayas (Remote, India)',
+    async fetch(keyword) {
+      const url = `https://himalayas.app/jobs/api?search=${encodeURIComponent(keyword)}&locationRestrictions=India&limit=30`
+      const res = await fetch(url, { headers: { Accept: 'application/json' } })
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+      const json = await res.json()
+      return json.jobs ?? []
+    },
+    parse(jobs) {
+      return jobs.map((j) => ({
+        title: j.title ?? '',
+        company: j.companyName ?? j.company?.name ?? '',
+        link: j.applicationLink ?? `https://himalayas.app/jobs/${j.slug ?? ''}`,
+        description: stripHtml(j.description ?? '').slice(0, 400),
+        published_date: (j.createdAt ?? j.publishedAt ?? '').split('T')[0] || today(),
+      }))
+    },
+  },
+
+  // Adzuna — free API key required (register at developer.adzuna.com). India-native results.
+  // Aggregates listings from Naukri, LinkedIn, and direct company pages.
+  adzuna: {
+    label: 'Adzuna India',
+    async fetch(keyword) {
+      const appId = process.env.ADZUNA_APP_ID
+      const appKey = process.env.ADZUNA_APP_KEY
+      if (!appId || !appKey) {
+        throw new Error(
+          'Adzuna requires ADZUNA_APP_ID and ADZUNA_APP_KEY env vars.\n' +
+          '  → Register free at https://developer.adzuna.com'
+        )
+      }
+      const url =
+        `https://api.adzuna.com/v1/api/jobs/in/search/1` +
+        `?app_id=${encodeURIComponent(appId)}` +
+        `&app_key=${encodeURIComponent(appKey)}` +
+        `&what=${encodeURIComponent(keyword)}` +
+        `&where=Bengaluru` +
+        `&results_per_page=20` +
+        `&content-type=application/json`
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+      const json = await res.json()
+      return json.results ?? []
+    },
+    parse(jobs) {
+      return jobs.map((j) => ({
+        title: j.title ?? '',
+        company: j.company?.display_name ?? '',
+        link: j.redirect_url ?? '',
+        description: stripHtml(j.description ?? '').slice(0, 400),
+        published_date: (j.created ?? '').split('T')[0] || today(),
+      }))
+    },
+  },
 }
 
-// ── PocketBase fetch helper ──────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function today() {
+  return new Date().toISOString().split('T')[0]
+}
+
+function stripHtml(html) {
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+// ── PocketBase fetch helper ───────────────────────────────────────────────────
 async function pbFetch(path, { headers: extraHeaders = {}, ...rest } = {}) {
   const res = await fetch(`${PB_URL}${path}`, {
     headers: { 'Content-Type': 'application/json', ...extraHeaders },
@@ -48,81 +135,8 @@ async function pbFetch(path, { headers: extraHeaders = {}, ...rest } = {}) {
   return body
 }
 
-// ── RSS XML parser ───────────────────────────────────────────────────────────
-function parseRSS(xml) {
-  const items = []
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g
-  let match
-
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const src = match[1]
-
-    const extract = (tag) => {
-      const cdata = src.match(
-        new RegExp(`<${tag}>[^<]*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>[^<]*<\\/${tag}>`)
-      )?.[1]
-      const plain = src.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`))?.[1]
-      return (cdata || plain || '').trim()
-    }
-
-    const title = extract('title')
-    // <link> in RSS 2.0 is a sibling text node, not an element child — handle both formats
-    const link =
-      extract('link') ||
-      src.match(/<link\s*\/?>\s*([^\s<][^<]*)/)?.[1]?.trim() ||
-      ''
-
-    const pubDate = extract('pubDate')
-    const description = extract('description')
-
-    // Common title formats:
-    //   Indeed:    "Job Title - Company Name"
-    //   TimesJobs: "Job Title | Company Name" or "Job Title - Company"
-    //   Remotive:  "Job Title at Company Name"
-    let cleanTitle = title
-    let company = ''
-    if (title.includes(' - ')) {
-      const dashIdx = title.lastIndexOf(' - ')
-      cleanTitle = title.slice(0, dashIdx).trim()
-      company = title.slice(dashIdx + 3).trim()
-    } else if (title.includes(' | ')) {
-      const pipeIdx = title.lastIndexOf(' | ')
-      cleanTitle = title.slice(0, pipeIdx).trim()
-      company = title.slice(pipeIdx + 3).trim()
-    } else if (title.includes(' at ')) {
-      const atIdx = title.lastIndexOf(' at ')
-      cleanTitle = title.slice(0, atIdx).trim()
-      company = title.slice(atIdx + 4).trim()
-    }
-
-    const cleanDesc = description
-      .replace(/<[^>]*>/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&nbsp;/g, ' ')
-      .trim()
-      .slice(0, 400)
-
-    if (cleanTitle && link) {
-      items.push({
-        title: cleanTitle.replace(/&amp;/g, '&'),
-        company: company.replace(/&amp;/g, '&'),
-        link,
-        description: cleanDesc,
-        published_date: pubDate
-          ? new Date(pubDate).toISOString().split('T')[0]
-          : new Date().toISOString().split('T')[0],
-      })
-    }
-  }
-
-  return items
-}
-
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function run() {
-  // 1. Authenticate
   console.log('🔐 Authenticating…')
   const auth = await pbFetch('/api/admins/auth-with-password', {
     method: 'POST',
@@ -131,7 +145,6 @@ async function run() {
   const H = { Authorization: `Bearer ${auth.token}` }
   console.log('✅ Authenticated')
 
-  // 2. Get active alerts
   const alertsRes = await pbFetch(
     '/api/collections/alerts/records?filter=active%3Dtrue&perPage=50',
     { headers: H }
@@ -144,7 +157,6 @@ async function run() {
     return
   }
 
-  // 3. Load existing listing links to skip duplicates
   const existingRes = await pbFetch(
     '/api/collections/job_listings/records?perPage=500&fields=link',
     { headers: H }
@@ -152,65 +164,53 @@ async function run() {
   const existingLinks = new Set((existingRes.items ?? []).map((r) => r.link))
   console.log(`   ${existingLinks.size} existing listing(s) in DB`)
 
-  // 4. Fetch RSS for each alert
   for (const alert of alerts) {
-    const source = alert.source || 'indeed'
-    const feedUrl = RSS_FEEDS[source]?.(alert.keyword)
+    const source = alert.source || 'remotive'
+    const sourceHandler = SOURCES[source]
 
-    if (!feedUrl) {
-      console.log(`\n⚠️  No RSS feed configured for source "${source}" — skipping`)
+    if (!sourceHandler) {
+      console.log(`\n⚠️  Unknown source "${source}" for alert "${alert.keyword}" — skipping`)
+      console.log(`   Supported sources: ${Object.keys(SOURCES).join(', ')}`)
       continue
     }
 
-    console.log(`\n🔍 ${source.toUpperCase()} RSS for: "${alert.keyword}"`)
-    console.log(`   ${feedUrl}`)
+    console.log(`\n🔍 ${sourceHandler.label} — "${alert.keyword}"`)
 
-    let xml
+    let rawJobs
     try {
-      const res = await fetch(feedUrl, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept: 'application/rss+xml, application/xml, text/xml, */*',
-        },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
-      xml = await res.text()
+      rawJobs = await sourceHandler.fetch(alert.keyword)
     } catch (e) {
-      console.error(`   ❌ Failed to fetch RSS: ${e.message}`)
+      console.error(`   ❌ Fetch failed: ${e.message}`)
       continue
     }
 
-    const items = parseRSS(xml)
-    console.log(`   📰 Parsed ${items.length} item(s)`)
+    const jobs = sourceHandler.parse(rawJobs)
+    console.log(`   📋 Fetched ${jobs.length} listing(s)`)
 
     let added = 0
-    for (const item of items) {
-      if (existingLinks.has(item.link)) continue
+    for (const job of jobs) {
+      if (!job.link || existingLinks.has(job.link)) continue
       try {
         await pbFetch('/api/collections/job_listings/records', {
           method: 'POST',
           headers: H,
-          body: JSON.stringify({ ...item, alert: alert.id, saved: false }),
+          body: JSON.stringify({ ...job, alert: alert.id, saved: false }),
         })
-        existingLinks.add(item.link)
+        existingLinks.add(job.link)
         added++
       } catch (e) {
-        console.error(`   ❌ Could not save listing "${item.title}": ${e.message}`)
+        console.error(`   ❌ Could not save "${job.title}": ${e.message}`)
       }
     }
     console.log(`   ✅ Added ${added} new listing(s)`)
 
-    // Update last_checked
     try {
       await pbFetch(`/api/collections/alerts/records/${alert.id}`, {
         method: 'PATCH',
         headers: H,
-        body: JSON.stringify({ last_checked: new Date().toISOString().split('T')[0] }),
+        body: JSON.stringify({ last_checked: today() }),
       })
-    } catch (_) {
-      // non-critical
-    }
+    } catch (_) { /* non-critical */ }
   }
 
   console.log('\n🎉 Done!')
