@@ -11,4 +11,10 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    watch: {
+      // Prevent Vite from triggering HMR when PocketBase writes to its DB/logs
+      ignored: ['**/pocketbase/pb_data/**'],
+    },
+  },
 })
