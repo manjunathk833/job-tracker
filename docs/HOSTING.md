@@ -1,98 +1,178 @@
-# HOSTING.md — Deployment Notes
+# HOSTING.md — Deployment Guide
 
-## Current Setup
-
-The app runs **locally** — PocketBase on `localhost:8090`, frontend on `localhost:5173`.
+## Architecture
 
 ```
+Your Mac (always-on when you want access)
+  └── PocketBase  :8090  ──► ngrok tunnel ──► https://your-domain.ngrok-free.app
+                                                        │
+Netlify (frontend, free)                                │
+  └── https://your-app.netlify.app                      │
+        └── React SPA (VITE_PB_URL baked at build) ─────┘
+```
+
+- **Frontend**: Netlify serves the static React build. Free, auto-deploys on push to `main`.
+- **Backend**: PocketBase runs on your Mac. Exposed publicly via ngrok when you want remote access.
+- **Cost**: $0 everywhere.
+
+---
+
+## One-Time Setup
+
+### Step 1 — Get a free ngrok static domain
+
+ngrok gives you one free permanent subdomain (e.g. `leopard-sunny-fox.ngrok-free.app`). This is the stable URL Netlify will use to reach your local PocketBase.
+
+1. Create a free account at https://dashboard.ngrok.com/signup
+2. Get your authtoken from https://dashboard.ngrok.com/authtokens
+3. Claim your free static domain at https://dashboard.ngrok.com/domains → **New Domain**
+4. Install ngrok:
+   ```bash
+   brew install ngrok/ngrok/ngrok
+   ```
+5. Authenticate:
+   ```bash
+   ngrok config add-authtoken YOUR_AUTHTOKEN
+   ```
+6. Test your tunnel (PocketBase must be running first):
+   ```bash
+   npm run dev:all   # start PocketBase + frontend
+
+   # In a separate terminal:
+   ngrok http --domain=YOUR_DOMAIN.ngrok-free.app 8090
+   ```
+   Visit `https://YOUR_DOMAIN.ngrok-free.app/_/` — you should see the PocketBase admin panel.
+
+### Step 2 — Add your ngrok domain to `.env`
+
+```bash
+# Edit .env and set:
+NGROK_DOMAIN=YOUR_DOMAIN.ngrok-free.app
+```
+
+After this, `npm run dev:tunnel` starts frontend + PocketBase + ngrok all at once:
+
+```bash
+npm run dev:tunnel
+```
+
+### Step 3 — Configure PocketBase CORS
+
+PocketBase needs to allow requests from your Netlify domain. Do this once:
+
+1. Open http://localhost:8090/_/ → log in as admin
+2. Go to **Settings** → **Application**
+3. Under **Allowed origins**, add:
+   - `https://YOUR_APP.netlify.app` (add after you know your Netlify URL — Step 4)
+   - `http://localhost:5173`
+4. Save
+
+### Step 4 — Deploy frontend to Netlify
+
+**Option A — Netlify UI (easiest):**
+
+1. Go to https://app.netlify.com → **Add new site** → **Import an existing project**
+2. Connect GitHub → select `manjunathk833/job-tracker`
+3. Settings:
+   - Branch: `main`
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+4. Add environment variable:
+   - Key: `VITE_PB_URL`
+   - Value: `https://YOUR_DOMAIN.ngrok-free.app`
+5. Click **Deploy site**
+
+**Option B — Netlify CLI:**
+
+```bash
+npm install -g netlify-cli
+netlify login
+netlify init          # connect to GitHub repo
+netlify env:set VITE_PB_URL "https://YOUR_DOMAIN.ngrok-free.app"
+netlify deploy --prod
+```
+
+After deploy, copy your Netlify URL (e.g. `https://job-tracker-abc123.netlify.app`) and go back to **Step 3** to add it to PocketBase CORS.
+
+### Step 5 — Verify end-to-end
+
+1. Start everything: `npm run dev:tunnel`
+2. Open your Netlify URL from your phone or another device
+3. You should see the app and be able to load applications/alerts
+4. Turn off the tunnel (`Ctrl+C`) — the app on Netlify should show empty/error state (expected — backend is offline)
+
+---
+
+## Daily Usage
+
+**When you want the app accessible from anywhere:**
+
+```bash
+npm run dev:tunnel
+# Starts: Vite frontend (:5173) + PocketBase (:8090) + ngrok tunnel
+# Netlify URL works from phone, other machines, anywhere
+```
+
+**When you only need local access:**
+
+```bash
+npm run dev:all
+# Starts: Vite frontend (:5173) + PocketBase (:8090)
+# localhost:5173 only — Netlify URL won't work (PocketBase not reachable)
+```
+
+---
+
+## How VITE_PB_URL Works
+
+Vite bakes `VITE_PB_URL` into the JS bundle at build time. This means:
+
+- Netlify build uses `https://YOUR_DOMAIN.ngrok-free.app` → works from any device when your Mac + tunnel are running
+- Local dev uses `http://localhost:8090` → works only from the same machine
+
+Your ngrok static domain never changes (unlike quick tunnels), so you only need to redeploy Netlify if you change domains.
+
+---
+
+## GitHub Actions (optional)
+
+`job-alert-cron.yml` and `backup.yml` will also work once you add GitHub Secrets:
+
+```bash
+gh secret set VITE_PB_URL --body "https://YOUR_DOMAIN.ngrok-free.app"
+gh secret set PB_ADMIN_EMAIL --body "your@email.com"
+gh secret set PB_ADMIN_PASSWORD   # prompts (not echoed)
+gh secret set ADZUNA_APP_ID       # optional
+gh secret set ADZUNA_APP_KEY      # optional
+```
+
+The cron and backup jobs will succeed as long as your Mac + tunnel are running at the scheduled time (3:00 PM UTC for cron, 2:30 PM UTC for backup).
+
+---
+
+## Local Dev (unchanged)
+
+```bash
 npm run dev:all
 # Frontend: http://localhost:5173
-# PocketBase admin: http://localhost:8090/_/
+# PocketBase: http://localhost:8090 (admin: /_/)
 ```
-
-This is the primary and recommended way to run the app. PocketBase is a single binary with zero external dependencies — no database server, no Docker, no cloud account needed.
 
 ---
 
-## Frontend on Netlify (optional)
+## Troubleshooting
 
-If you want the UI accessible from other devices (phone, work laptop) while keeping PocketBase local, deploy only the frontend to Netlify. The frontend is a static SPA — free to host anywhere.
+**Netlify shows blank / API errors:**
+→ Your Mac or ngrok tunnel is not running. Start `npm run dev:tunnel`.
 
-`netlify.toml` is already committed. Steps:
+**ngrok shows "domain not found" or "unauthorized":**
+→ Run `ngrok config add-authtoken YOUR_AUTHTOKEN` again.
 
-1. Go to [app.netlify.com](https://app.netlify.com) → Add new site → Import from Git
-2. Connect GitHub → select `manjunathk833/job-tracker`
-3. Branch: `main` | Build command: `npm run build` | Publish dir: `dist`
-4. Add env variable: `VITE_PB_URL` = your PocketBase URL (see options below)
-5. Deploy
+**PocketBase CORS error in browser console:**
+→ Add your Netlify domain to PocketBase → Settings → Application → Allowed origins.
 
-> **Note:** Netlify builds bake `VITE_PB_URL` into the JS bundle at build time. If you change the PocketBase URL later, trigger a new Netlify deploy.
+**`npm run dev:tunnel` fails with "ngrok: command not found":**
+→ Install ngrok: `brew install ngrok/ngrok/ngrok`
 
----
-
-## PocketBase Hosting Options
-
-If you want PocketBase accessible publicly (for Netlify frontend + GitHub Actions cron/backup):
-
-| Option | Cost | Notes |
-|--------|------|-------|
-| **Local only** | Free | Current setup. Works perfectly for personal use on one machine. |
-| **Railway** | Free tier (500 hrs/mo) | Supports persistent volumes. Deploy via Docker. Requires credit card for verification only (not charged on free tier). |
-| **Render** | Free tier | Free web service + persistent disk ($0.25/GB/mo). Docker deploy. |
-| **VPS (Hetzner/DigitalOcean)** | ~€4-5/mo | Most reliable. Full control. Run PocketBase binary directly. |
-| **Tailscale** | Free | VPN mesh — expose localhost:8090 to your own devices only. No public URL. |
-
-### Quickest path to a public URL (no account needed): Cloudflare Quick Tunnel
-
-```bash
-# Install cloudflared
-brew install cloudflare/cloudflare/cloudflared
-
-# Start a temporary public tunnel to local PocketBase
-cloudflared tunnel --url http://localhost:8090
-```
-
-This gives you a random `https://*.trycloudflare.com` URL — valid as long as the command runs. Useful for testing Netlify → local PocketBase calls. Not stable across restarts.
-
----
-
-## GitHub Actions Workflows
-
-Three workflows are committed:
-
-| Workflow | Trigger | Requires |
-|----------|---------|----------|
-| `ci.yml` | Push to `dev`, PR to `main` | Nothing — builds with `VITE_PB_URL=localhost` |
-| `job-alert-cron.yml` | Daily 3:00 PM UTC, manual | Live PocketBase URL + secrets |
-| `backup.yml` | Daily 2:30 PM UTC, manual | Live PocketBase URL + secrets |
-
-`ci.yml` runs automatically and always works. The cron and backup workflows need these GitHub Secrets set:
-
-```bash
-gh secret set VITE_PB_URL        # https://your-pocketbase-url
-gh secret set PB_ADMIN_EMAIL
-gh secret set PB_ADMIN_PASSWORD
-gh secret set ADZUNA_APP_ID      # optional
-gh secret set ADZUNA_APP_KEY     # optional
-```
-
-Until a live PocketBase URL is configured, the cron and backup jobs will fail silently on schedule (they only matter if you have remote PocketBase).
-
----
-
-## Local Cron (current)
-
-Job alerts are fetched daily via crontab (set up during Sprint 6):
-
-```bash
-# Check current crontab
-crontab -l
-
-# Entry (runs at 8:30 AM IST = 3:00 AM UTC)
-0 3 * * * /opt/homebrew/bin/node /Users/yeshwinmanjunath/development/job-tracker/scripts/job-alert-cron.js admin@local.dev yourpassword >> /tmp/job-alert-cron.log 2>&1
-
-# Check logs
-tail -f /tmp/job-alert-cron.log
-```
-
-This works independently of GitHub Actions — no live URL required.
+**ngrok tunnel URL shows but PocketBase admin 404s:**
+→ Make sure PocketBase is running on :8090 first (`npm run dev:all` or `npm run dev:pb`).

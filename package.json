@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:pb": "cd pocketbase && ./pocketbase serve",
     "dev:all": "concurrently -n \"frontend,pocketbase\" -c \"cyan,magenta\" \"npm run dev\" \"npm run dev:pb\"",
+    "dev:tunnel": "concurrently -n \"frontend,pocketbase,tunnel\" -c \"cyan,magenta,yellow\" \"npm run dev\" \"npm run dev:pb\" \"ngrok http --domain=$NGROK_DOMAIN 8090\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
